@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -10,7 +11,7 @@ namespace Widgets.Common
         public static event EventHandler<LogMessage>? LogEvent;
         private static readonly ConcurrentQueue<string> _logQueue = new();
         private static readonly Schedule schedule = new();
-        private static string LogFilePath = "";
+        public readonly static string LogFileDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
         private  static string scheduleID = string.Empty;
 
         public static void Log(object message, 
@@ -58,11 +59,6 @@ namespace Widgets.Common
             Log(message, LogLevel.Warning, pluginName, memberName, filePath, lineNumber);
         }
 
-        public static void SetLogFilePath(string filePath)
-        {
-            LogFilePath = filePath;
-        }
-
         public static void BufferLog(string log)
         {
             _logQueue.Enqueue(log);
@@ -75,15 +71,30 @@ namespace Widgets.Common
 
         private static async Task WriteFromBufferToFile()
         {
-            if (_logQueue.IsEmpty) return;
-
-            var logBuilder = new StringBuilder();
-            while (_logQueue.TryDequeue(out var log))
+            try
             {
-                logBuilder.AppendLine(log);
-            }
+                if (_logQueue.IsEmpty) return;
 
-            await File.AppendAllLinesAsync(LogFilePath, [logBuilder.ToString().TrimEnd()]);
+                string date = DateTime.Now.ToString("yyyy_MM_dd");
+                string fileName = $"{LogFileDir}/{date}_widgets.log";
+
+                if (!Directory.Exists(LogFileDir))
+                {
+                    Directory.CreateDirectory(LogFileDir);
+                }
+
+                var logBuilder = new StringBuilder();
+                while (_logQueue.TryDequeue(out var log))
+                {
+                    logBuilder.AppendLine(log);
+                }
+
+                await File.AppendAllLinesAsync(fileName, [logBuilder.ToString().TrimEnd()]);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+            }
         }
 
         public static async Task CloseWithFlush()
