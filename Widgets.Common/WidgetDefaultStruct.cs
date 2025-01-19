@@ -26,6 +26,7 @@ namespace Widgets.Common
         public bool ShowInTaskbar { get; set; }
         public bool Dragable { get; set; }
         public bool IsHitTestVisible { get; set; }
+        public bool DesktopIntegration { get; set; }
 
         public WidgetDefaultStruct()
         {
@@ -50,6 +51,7 @@ namespace Widgets.Common
             SizeToContent = SizeToContent.Manual;
             IsHitTestVisible = true;
             Dragable = true;
+            DesktopIntegration = false;
         }
     };
 }

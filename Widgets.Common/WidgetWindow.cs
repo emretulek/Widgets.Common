@@ -1,24 +1,19 @@
-﻿using System.Runtime.InteropServices;
-using System.Windows.Controls;
+﻿using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows;
-using System.Windows.Media;
+using System.Drawing;
 
 namespace Widgets.Common
 {
     public partial class WidgetWindow
     {
         public Window Window;
-        public WidgetDefaultStruct Default;
+        private IntPtr _wpfHwnd;
 
-        public WidgetWindow(Window window, WidgetDefaultStruct defaults)
+        public WidgetWindow(Window window)
         {
-
             Window = window;
-            Default = defaults;
-
-            SetWidgetStruct(Default);
-            Window.Loaded += WidgetWindow_Loaded;
+            Window.SourceInitialized += WidgetWindow_SourceInitialized;
         }
 
         public void SetWidgetStruct(WidgetDefaultStruct widgetStruct)
@@ -39,9 +34,10 @@ namespace Widgets.Common
             AllowsTransparency = widgetStruct.AllowsTransparency;
             WindowStyle = widgetStruct.WindowStyle;
             ShowInTaskbar = widgetStruct.ShowInTaskbar;
-            ResizeMode = widgetStruct.ResizeMode;
+            //ResizeMode = widgetStruct.ResizeMode; //Applies widget manager after widget window is loaded
             SizeToContent = widgetStruct.SizeToContent;
             IsHitTestVisible = widgetStruct.IsHitTestVisible;
+            //DesktopIntegration = widgetStruct.DesktopIntegration; //Applies widget manager after widget window is loaded
         }
 
         public double Width
@@ -95,13 +91,13 @@ namespace Widgets.Common
             set => Window.Top = value;
         }
 
-        public Brush Background
+        public System.Windows.Media.Brush Background
         {
             get { return Window.Background; }
             set => Window.Background = value;
         }
 
-        public Brush BorderBrush
+        public System.Windows.Media.Brush BorderBrush
         {
             get { return Window.BorderBrush; }
             set => Window.BorderBrush = value;
@@ -201,32 +197,54 @@ namespace Widgets.Common
             }
         }
 
-        private const int GWL_EXSTYLE = -20;
-        private const int WS_EX_TOOLWINDOW = 0x00000080;
-        //private const int WS_EX_NOACTIVATE = 0x08000000;
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern IntPtr GetDesktopWindow();
-
-        //const uint SWP_NOACTIVATE = 0x0010;
-        //const uint SWP_NOZORDER = 0x0004;
-
-        private void WidgetWindow_Loaded(object sender, RoutedEventArgs e)
+        public bool DesktopIntegration
         {
-            IntPtr hWnd = new WindowInteropHelper(Window).Handle;
-            IntPtr exStyle = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
-            //IntPtr desktopHandle = GetDesktopWindow();
-            SetWindowLongPtr(hWnd, GWL_EXSTYLE, new IntPtr(exStyle.ToInt64() | WS_EX_TOOLWINDOW));
-            //SetWindowPos(hWnd, desktopHandle, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOZORDER);
+            get
+            {
+                return DeskTopHelper.GetParent(_wpfHwnd) > 0;
+            }
+            set
+            {
+                if (value)
+                {
+                    DesktopIntegrate();
+                }
+                else
+                {
+                    DesktopUnIntegrate();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        private async void DesktopIntegrate()
+        {
+            var formHwnd = await DeskTopHelper.GetWorkerwContainer();
+            var bounds = new Rectangle((int)Window.Left, (int)Window.Top, (int)Window.Width, (int)Window.Height);
+            DeskTopHelper.SetParentExtended(_wpfHwnd, formHwnd, bounds);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        private void DesktopUnIntegrate()
+        {
+            DeskTopHelper.SetParent(_wpfHwnd, IntPtr.Zero);
+        }
+
+       
+        /// <summary>
+        /// Turn window into toolwindow
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void WidgetWindow_SourceInitialized(object? sender, EventArgs e)
+        {
+            _wpfHwnd = new WindowInteropHelper(Window).Handle;
+            IntPtr exStyle = DeskTopHelper.GetWindowLongPtr(_wpfHwnd, DeskTopHelper.GWL_EXSTYLE);
+            DeskTopHelper.SetWindowLongPtr(_wpfHwnd, DeskTopHelper.GWL_EXSTYLE, new IntPtr(exStyle.ToInt64() | DeskTopHelper.WS_EX_TOOLWINDOW));
         }
     }
 }
