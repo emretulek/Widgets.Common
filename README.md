@@ -32,7 +32,7 @@ The class that gives the Widget properties to the created Window object. [Widget
 //WidgetWindow instance
 public WidgetWindow WidgetWindow()
 {
-    return new WidgetWindow(this, WidgetDefaultStruct());
+    return new WidgetWindow(this);
 }
 
 // Default widget settings
